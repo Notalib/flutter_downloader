@@ -66,6 +66,7 @@ import io.flutter.view.FlutterCallbackInformation;
 public class DownloadWorker extends Worker implements MethodChannel.MethodCallHandler {
     public static final String ARG_URL = "url";
     public static final String ARG_FILE_NAME = "file_name";
+    public static final String ARG_DISPLAY_NAME = "display_name";
     public static final String ARG_SAVED_DIR = "saved_file";
     public static final String ARG_HEADERS = "headers";
     public static final String ARG_IS_RESUME = "is_resume";
@@ -167,12 +168,9 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         dbHelper = TaskDbHelper.getInstance(context);
         taskDao = new TaskDao(dbHelper);
 
-        String url = getInputData().getString(ARG_URL);
-        String filename = getInputData().getString(ARG_FILE_NAME);
-
         DownloadTask task = taskDao.loadTask(getId().toString());
         if (task.status == DownloadStatus.ENQUEUED) {
-            updateNotification(context, filename == null ? url : filename, DownloadStatus.CANCELED, -1, null, true);
+            updateNotification(context, getFileDisplayName(), DownloadStatus.CANCELED, -1, null, true);
             taskDao.updateTask(getId().toString(), DownloadStatus.CANCELED, lastProgress);
         }
     }
@@ -189,6 +187,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         String savedDir = getInputData().getString(ARG_SAVED_DIR);
         String headers = getInputData().getString(ARG_HEADERS);
         boolean isResume = getInputData().getBoolean(ARG_IS_RESUME, false);
+        String displayName = getFileDisplayName();
         debug = getInputData().getBoolean(ARG_DEBUG, false);
 
         Resources res = getApplicationContext().getResources();
@@ -201,7 +200,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
         DownloadTask task = taskDao.loadTask(getId().toString());
 
-        log("DownloadWorker{url=" + url + ",filename=" + filename + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume + ",status=" + (task != null ? task.status : "GONE"));
+        log("DownloadWorker{url=" + url + ",filename=" + filename + ",displayName=" + displayName + ",savedDir=" + savedDir + ",header=" + headers + ",isResume=" + isResume + ",status=" + (task != null ? task.status : "GONE"));
 
         // Task has been deleted or cancelled
         if (task == null || task.status == DownloadStatus.CANCELED) {
@@ -216,7 +215,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
         setupNotification(context);
 
-        updateNotification(context, filename == null ? url : filename, DownloadStatus.RUNNING, task.progress, null, false);
+        updateNotification(context, displayName, DownloadStatus.RUNNING, task.progress, null, false);
         taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, task.progress);
 
         //automatic resume for partial files. (if the workmanager unexpectedly quited in background)
@@ -228,19 +227,32 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         }
 
         try {
-            downloadFile(context, url, savedDir, filename, headers, isResume);
+            downloadFile(context, url, savedDir, filename, displayName, headers, isResume);
             cleanUp();
             dbHelper = null;
             taskDao = null;
             return Result.success();
         } catch (Exception e) {
-            updateNotification(context, filename == null ? url : filename, DownloadStatus.FAILED, -1, null, true);
+            updateNotification(context, displayName, DownloadStatus.FAILED, -1, null, true);
             taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
             e.printStackTrace();
             dbHelper = null;
             taskDao = null;
             return Result.failure();
         }
+    }
+
+    private String getFileDisplayName() {
+        String displayName = getInputData().getString(ARG_DISPLAY_NAME);
+        if(displayName != null) {
+            return displayName;
+        }
+        String filename = getInputData().getString(ARG_FILE_NAME);
+        if(filename != null) {
+            return filename;
+        }
+
+        return getInputData().getString(ARG_URL);
     }
 
     private void setupHeaders(HttpURLConnection conn, String headers) {
@@ -271,7 +283,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         return downloadedBytes;
     }
 
-    private void downloadFile(Context context, String fileURL, String savedDir, String filename, String headers, boolean isResume) throws IOException {
+    private void downloadFile(Context context, String fileURL, String savedDir, String filename, String displayName, String headers, boolean isResume) throws IOException {
         String url = fileURL;
         URL resourceUrl, base, next;
         Map<String, Integer> visited;
@@ -415,7 +427,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                         // a new bunch of data fetched and a notification sent
                         taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, progress);
 
-                        updateNotification(context, filename, DownloadStatus.RUNNING, progress, null, false);
+                        updateNotification(context, displayName, DownloadStatus.RUNNING, progress, null, false);
                     }
                 }
 
@@ -445,19 +457,19 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     }
                 }
                 taskDao.updateTask(getId().toString(), status, progress);
-                updateNotification(context, filename, status, progress, pendingIntent, true);
+                updateNotification(context, displayName, status, progress, pendingIntent, true);
 
                 log(isStopped() ? "Download canceled" : "File downloaded");
             } else {
                 DownloadTask task = taskDao.loadTask(getId().toString());
                 int status = isStopped() ? (task.resumable ? DownloadStatus.PAUSED : DownloadStatus.CANCELED) : DownloadStatus.FAILED;
                 taskDao.updateTask(getId().toString(), status, lastProgress);
-                updateNotification(context, filename == null ? fileURL : filename, status, -1, null, true);
+                updateNotification(context, displayName, status, -1, null, true);
                 log(isStopped() ? "Download canceled" : "Server replied HTTP code: " + responseCode);
             }
         } catch (IOException e) {
             taskDao.updateTask(getId().toString(), DownloadStatus.FAILED, lastProgress);
-            updateNotification(context, filename == null ? fileURL : filename, DownloadStatus.FAILED, -1, null, true);
+            updateNotification(context, displayName, DownloadStatus.FAILED, -1, null, true);
             e.printStackTrace();
         } finally {
             if (outputStream != null) {

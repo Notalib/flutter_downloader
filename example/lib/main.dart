@@ -287,6 +287,7 @@ class _MyHomePageState extends State<MyHomePage> {
       headers: {"auth": "test_for_sql_encoding"},
       savedDir: _localPath,
       showNotification: true,
+      displayName: task.name,
       openFileFromNotification: true,
       saveInPublicStorage: true,
     );
@@ -379,7 +380,7 @@ class _MyHomePageState extends State<MyHomePage> {
       count++;
     }
 
-    tasks!.forEach((task) {
+    tasks?.forEach((task) {
       for (_TaskInfo info in _tasks!) {
         if (info.link == task.url) {
           info.taskId = task.taskId;

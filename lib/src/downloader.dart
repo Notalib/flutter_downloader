@@ -52,6 +52,7 @@ class FlutterDownloader {
   /// * `showNotification`: sets `true` to show a notification displaying the
   /// download progress (only Android), otherwise, `false` value will disable
   /// this feature. The default value is `true`
+  /// * `displayName`: (only Android) used as notification title
   /// * `openFileFromNotification`: if `showNotification` is `true`, this flag
   /// controls the way to response to user's click action on the notification
   /// (only Android). If it is `true`, user can click on the notification to
@@ -72,6 +73,7 @@ class FlutterDownloader {
       {required String url,
       required String savedDir,
       String? fileName,
+      String? displayName,
       Map<String, String>? headers,
       bool showNotification = true,
       bool openFileFromNotification = true,
@@ -94,6 +96,7 @@ class FlutterDownloader {
         'url': url,
         'saved_dir': savedDir,
         'file_name': fileName,
+        'display_name': displayName,
         'headers': headerBuilder.toString(),
         'show_notification': showNotification,
         'open_file_from_notification': openFileFromNotification,
@@ -126,6 +129,7 @@ class FlutterDownloader {
               progress: item['progress'],
               url: item['url'],
               filename: item['file_name'],
+              displayName: item['display_name'],
               savedDir: item['saved_dir'],
               timeCreated: item['time_created']))
           .toList();
@@ -169,6 +173,7 @@ class FlutterDownloader {
               progress: item['progress'],
               url: item['url'],
               filename: item['file_name'],
+              displayName: item['display_name'],
               savedDir: item['saved_dir'],
               timeCreated: item['time_created']))
           .toList();
