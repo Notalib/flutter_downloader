@@ -138,10 +138,10 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         dbHelper = TaskDbHelper.getInstance(context)
         taskDao = TaskDao(dbHelper!!)
         val url: String? = inputData.getString(ARG_URL)
-        val filename: String? = inputData.getString(ARG_FILE_NAME)
         val task = taskDao?.loadTask(id.toString())
+        var displayName: String? = inputData.getString(ARG_DISPLAY_NAME) ?: inputData.getString(ARG_FILE_NAME)
         if (task != null && task.status == DownloadStatus.ENQUEUED) {
-            updateNotification(context, filename ?: url, DownloadStatus.CANCELED, -1, null, true)
+            updateNotification(context, displayName ?: url, DownloadStatus.CANCELED, -1, null, true)
             taskDao?.updateTask(id.toString(), DownloadStatus.CANCELED, lastProgress)
         }
     }
@@ -151,8 +151,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         taskDao = TaskDao(dbHelper!!)
         val url: String =
             inputData.getString(ARG_URL) ?: throw IllegalArgumentException("Argument '$ARG_URL' should not be null")
-        val filename: String? =
-            inputData.getString(ARG_FILE_NAME) // ?: throw IllegalArgumentException("Argument '$ARG_FILE_NAME' should not be null")
+        val filename: String? = inputData.getString(ARG_FILE_NAME)
+        var displayName: String? = inputData.getString(ARG_DISPLAY_NAME) ?: filename // ?: throw IllegalArgumentException("Argument '$ARG_FILE_NAME' should not be null")
         val savedDir: String = inputData.getString(ARG_SAVED_DIR)
             ?: throw IllegalArgumentException("Argument '$ARG_SAVED_DIR' should not be null")
         val headers: String = inputData.getString(ARG_HEADERS)
@@ -188,7 +188,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         setupNotification(applicationContext)
         updateNotification(
             applicationContext,
-            filename ?: url,
+            displayName ?: url,
             DownloadStatus.RUNNING,
             task.progress,
             null,
@@ -204,13 +204,13 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
             log("exists file for " + filename + "automatic resuming...")
         }
         return try {
-            downloadFile(applicationContext, url, savedDir, filename, headers, isResume)
+            downloadFile(applicationContext, url, savedDir, filename, displayName, headers, isResume)
             cleanUp()
             dbHelper = null
             taskDao = null
             Result.success()
         } catch (e: Exception) {
-            updateNotification(applicationContext, filename ?: url, DownloadStatus.FAILED, -1, null, true)
+            updateNotification(applicationContext, displayName ?: url, DownloadStatus.FAILED, -1, null, true)
             taskDao?.updateTask(id.toString(), DownloadStatus.FAILED, lastProgress)
             e.printStackTrace()
             dbHelper = null
@@ -256,10 +256,12 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         fileURL: String,
         savedDir: String,
         filename: String?,
+        displayName: String?,
         headers: String,
         isResume: Boolean
     ) {
         var filename = filename
+        var displayName = displayName
         var url = fileURL
         var resourceUrl: URL
         var base: URL?
@@ -405,7 +407,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                         taskDao!!.updateTask(id.toString(), DownloadStatus.RUNNING, progress)
                         updateNotification(
                             context,
-                            filename,
+                            displayName ?: filename,
                             DownloadStatus.RUNNING,
                             progress,
                             null,
@@ -451,19 +453,21 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
                     }
                 }
                 taskDao!!.updateTask(id.toString(), status, progress)
-                updateNotification(context, filename, status, progress, pendingIntent, true)
+                updateNotification(context, displayName ?: filename, status, progress, pendingIntent, true)
                 log(if (isStopped) "Download canceled" else "File downloaded")
             } else {
                 val task = taskDao!!.loadTask(id.toString())
                 val status =
                     if (isStopped) if (task!!.resumable) DownloadStatus.PAUSED else DownloadStatus.CANCELED else DownloadStatus.FAILED
+                val notificationTitle: String? = displayName ?: filename
                 taskDao!!.updateTask(id.toString(), status, lastProgress)
-                updateNotification(context, filename ?: fileURL, status, -1, null, true)
+                updateNotification(context, notificationTitle ?: fileURL, status, -1, null, true)
                 log(if (isStopped) "Download canceled" else "Server replied HTTP code: $responseCode")
             }
         } catch (e: IOException) {
             taskDao!!.updateTask(id.toString(), DownloadStatus.FAILED, lastProgress)
-            updateNotification(context, filename ?: fileURL, DownloadStatus.FAILED, -1, null, true)
+            val notificationTitle: String? = displayName ?: filename
+            updateNotification(context, notificationTitle ?: fileURL, DownloadStatus.FAILED, -1, null, true)
             e.printStackTrace()
         } finally {
             if (outputStream != null) {
@@ -827,6 +831,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) :
         const val ARG_IS_RESUME = "is_resume"
         const val ARG_SHOW_NOTIFICATION = "show_notification"
         const val ARG_OPEN_FILE_FROM_NOTIFICATION = "open_file_from_notification"
+        const val ARG_DISPLAY_NAME = "display_name"
         const val ARG_CALLBACK_HANDLE = "callback_handle"
         const val ARG_DEBUG = "debug"
         const val ARG_STEP = "step"

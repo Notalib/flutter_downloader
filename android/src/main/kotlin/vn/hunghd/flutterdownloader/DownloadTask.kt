@@ -12,6 +12,7 @@ data class DownloadTask(
     var mimeType: String,
     var resumable: Boolean,
     var showNotification: Boolean,
+    var displayName: String?,
     var openFileFromNotification: Boolean,
     var timeCreated: Long,
     var saveInPublicStorage: Boolean

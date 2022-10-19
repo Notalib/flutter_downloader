@@ -19,6 +19,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         TaskEntry.COLUMN_NAME_RESUMABLE,
         TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION,
         TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION,
+        TaskEntry.COLUMN_NAME_DISPLAY_NAME,
         TaskEntry.COLUMN_NAME_TIME_CREATED,
         TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE
     )
@@ -32,6 +33,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         savedDir: String?,
         headers: String?,
         showNotification: Boolean,
+        displayName: String?,
         openFileFromNotification: Boolean,
         saveInPublicStorage: Boolean
     ) {
@@ -46,6 +48,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         values.put(TaskEntry.COLUMN_NAME_HEADERS, headers)
         values.put(TaskEntry.COLUMN_NAME_MIME_TYPE, "unknown")
         values.put(TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION, if (showNotification) 1 else 0)
+        values.put(TaskEntry.COLUMN_NAME_DISPLAY_NAME, displayName)
         values.put(
             TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION,
             if (openFileFromNotification) 1 else 0
@@ -240,6 +243,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
         val mimeType = cursor.getString(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_MIME_TYPE))
         val resumable = cursor.getShort(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_RESUMABLE)).toInt()
         val showNotification = cursor.getShort(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_SHOW_NOTIFICATION)).toInt()
+        val displayName = cursor.getString(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_DISPLAY_NAME))
         val clickToOpenDownloadedFile = cursor.getShort(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_OPEN_FILE_FROM_NOTIFICATION)).toInt()
         val timeCreated = cursor.getLong(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_NAME_TIME_CREATED))
         val saveInPublicStorage = cursor.getShort(cursor.getColumnIndexOrThrow(TaskEntry.COLUMN_SAVE_IN_PUBLIC_STORAGE)).toInt()
@@ -255,6 +259,7 @@ class TaskDao(private val dbHelper: TaskDbHelper) {
             mimeType,
             resumable == 1,
             showNotification == 1,
+            displayName,
             clickToOpenDownloadedFile == 1,
             timeCreated,
             saveInPublicStorage == 1
